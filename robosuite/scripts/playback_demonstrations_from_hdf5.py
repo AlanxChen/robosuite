@@ -22,6 +22,7 @@ import h5py
 import numpy as np
 
 import robosuite
+import mimicgen
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

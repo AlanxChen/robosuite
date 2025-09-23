@@ -32,7 +32,36 @@ elif PYOPENGL_PLATFORM.lower() != "egl":
 from mujoco.egl import egl_ext as EGL
 from OpenGL import error
 
-
+def convert_egl_device_index(egl_index):
+    """Convert between EGL device index and nvidia-smi GPU index.
+    
+    The mapping is based on server-specific configuration:
+    EGL index -> nvidia-smi index:
+        0 -> 2
+        1 -> 3
+        2 -> 1
+        3 -> 0
+        4 -> 6
+        5 -> 7
+        6 -> 5
+        7 -> 4
+    """
+    conversion_map = {
+        0: 2,
+        1: 3,
+        2: 1,
+        3: 0,
+        4: 6,
+        5: 7,
+        6: 5,
+        7: 4
+    }
+    
+    if egl_index in conversion_map:
+        return conversion_map[egl_index]
+    else:
+        raise ValueError(f"Invalid EGL device index: {egl_index}. Only 0-7 are supported in this mapping.")
+    
 def create_initialized_egl_device_display(device_id=0):
     """Creates an initialized EGL display directly on a device."""
     all_devices = EGL.eglQueryDevicesEXT()
@@ -62,6 +91,14 @@ def create_initialized_egl_device_display(device_id=0):
                 f"The MUJOCO_EGL_DEVICE_ID environment variable must be an integer "
                 f"between 0 and {len(all_devices)-1} (inclusive), got {device_idx}."
             )
+    
+    # When using async environments to test policies, the device order returned by EGL.eglQueryDevicesEXT() 
+    # may not match the GPU sequence shown in nvidia-smi (possibly due to server configuration). 
+    # Therefore, we need to convert between the two orderings.
+    USING_CONVERT_DEVICES=False
+    if USING_CONVERT_DEVICES:
+        device_idx = convert_egl_device_index(device_idx)
+        
     candidates = all_devices[device_idx : device_idx + 1]
     for device in candidates:
         display = EGL.eglGetPlatformDisplayEXT(EGL.EGL_PLATFORM_DEVICE_EXT, device, None)
